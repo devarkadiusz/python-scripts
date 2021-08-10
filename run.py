@@ -1,8 +1,9 @@
-from flask import Flask, request
+from flask import Flask, request, redirect
 from flask_restful import Resource, Api
 import hashlib
 import time
 import random
+import json
 
 app = Flask(__name__)
 api = Api(app)
@@ -27,20 +28,28 @@ class Index(Resource):
     
 class GetByKey(Resource):
     def get(self, key):
-        if links[key]:
+        if key in links:
+            return links[key]
+
+        return redirect('/', code=404)
+    
+class Redirect(Resource):
+    def get(self, key):
+        if key in links:
             activated = time.time()
             addr = request.remote_addr
-            if not addr in links[key]['active']:
-                links[key]['active'][addr] = []
+            link = links[key]
+            if not addr in link['active']:
+                 link['active'][addr] = []
 
-            list = links[key]['active'][addr]
-            list.append(activated)
+            link['active'][addr].append(activated)
 
-            return [links[key]['active'][request.remote_addr], len(links[key]['active'][request.remote_addr])]
-        return {'',''}
+            return redirect(link['target'], code=302)
+        return redirect('/', code=404)
 
 api.add_resource(Index, '/')
 api.add_resource(GetByKey, '/get/<string:key>')
+api.add_resource(Redirect, '/r/<string:key>')
 
 if __name__ == '__main__':
     app.run(debug=True)
